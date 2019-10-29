@@ -1,0 +1,79 @@
+---
+title: "tidytuesday_102919"
+author: "Szumin Yu"
+date: "10/29/2019"
+output: html_document
+---
+
+Load packages
+```{r}
+options(stringsAsFactors = F)
+options(scipen = 999)
+library(tidyverse)
+library(bbplot)
+library(magick)
+```
+
+
+Get data
+```{r}
+# get data
+nyc_squirrels = readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-29/nyc_squirrels.csv")
+```
+
+Get squirrel photo
+```{r}
+# get photo
+image = image_read('sq3.png')
+image = image_scale(image, "200")
+```
+
+Make bar charts
+```{r}
+# preparation
+sq_activity = nyc_squirrels %>%
+  select(unique_squirrel_id, primary_fur_color, running, chasing, eating, foraging) %>%
+  drop_na() %>%
+  gather(key = 'activity', value = 't_or_f', -primary_fur_color, -unique_squirrel_id) %>%
+  filter(t_or_f == TRUE) %>%
+  select(-t_or_f)
+sq_activity$activity = tools::toTitleCase(sq_activity$activity)
+sq_activity$activity = factor(sq_activity$activity, levels = c('Chasing','Eating','Running','Foraging'))
+
+
+# plot it
+p = image_graph(width = 500, height = 400, res=96)
+ggplot(sq_activity, aes(x = activity))+
+  geom_bar(aes(fill = primary_fur_color), stat = 'count', width = .5)+
+  ylim(0,1700)+
+  coord_flip() +
+  scale_fill_manual(name = 'Primary Fur Color', values = c('#252525', '#a63603', '#bdbdbd'))+
+  labs(x = 'Activity', y = 'Count') +
+  theme(legend.position = 'bottom',
+        text = element_text(family = 'Calibri'),
+        legend.title = element_text(family = 'Calibri',size = 10), 
+        legend.text = element_text(family = 'Calibri',size = 9),
+        plot.background = element_rect(fill = "transparent", color = "transparent"),
+        panel.background = element_rect(fill = "transparent"))
+dev.off()
+
+# add image
+out = image_composite(p, image, offset = '+300+160')
+print(out)
+image_write(out, 'output.png')
+```
+
+Make leafleat map
+```{r}
+library(leaflet)
+
+p2 = leaflet(nyc_squirrels) %>% 
+  addTiles('https://{s}.tile.openstreetmap.se/hydda/full/{z}/{x}/{y}.png') %>%
+  setView(lat=40.78, lng=-73.964, zoom = 14)%>%
+  addMarkers(
+    lat = ~lat,
+    lng = ~long,
+    clusterOptions = markerClusterOptions())
+
+htmlwidgets::saveWidget(p2, 'map.html')
+```
