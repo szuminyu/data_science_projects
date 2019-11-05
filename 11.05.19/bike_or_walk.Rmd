@@ -1,0 +1,215 @@
+---
+title: "tidytuesday_11_04_19"
+author: "Szumin Yu"
+date: "11/4/2019"
+output: html_document
+---
+Modes Less Traveled - Bicycling and Walking to Work in the United States: 2008-2012
+
+Let's load package 
+```{r}
+options(stringsAsFactors = F)
+options(scipen = 999)
+library(tidyverse)
+library(here)
+library(naniar)
+library(ggalt)
+library(magick)
+library(emo)
+library(ggthemes)
+```
+
+##Get the data
+```{r message = F}
+bike_or_walk = readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-11-05/commute.csv")
+head(bike_or_walk)
+
+# any NAs? only 0.1 %
+vis_miss(bike_or_walk)
+
+# show rows with NA - Paso Robles, West Springfiled, Washington DC
+bike_or_walk[which(is.na(bike_or_walk$state_abb)),]
+
+# clean rows regarding DC since it is more representative
+bike_or_walk$state_abb[bike_or_walk$state == 'District of Columbia'] = 'DC'
+bike_or_walk$state_region[bike_or_walk$state == 'District of Columbia'] = 'South'
+
+# drop na
+bike_or_walk = bike_or_walk %>%
+  drop_na()
+
+# clean the percentage
+bike_or_walk = bike_or_walk %>%
+  mutate(percent = percent/100, moe = moe/100)
+```
+
+##Explore the data
+
+
+Top walking v.s. biking cities/states?
+
+walking: Ithaca, Athens, etc. -> top 10 in Northeast or North Central
+biking: Davis, Keywest -> mostly in West 
+
+```{r}
+
+bike_or_walk %>%
+  filter(mode == "Walk") %>%
+  arrange(desc(percent)) %>%
+  slice(1:20)%>%
+  count(state_region)
+
+bike_or_walk %>%
+  filter(mode == "Bike") %>%
+  arrange(desc(percent)) %>%
+  slice(1:20) %>%
+  count(state_region)
+
+```
+
+Map it and see the difference in states!
+
+```{r}
+
+# get the data
+map_df = bike_or_walk %>%
+  select(city, state, state_region, state_abb,mode, percent) %>%
+  spread(key = mode, value = percent) %>%
+  drop_na() %>%
+  mutate(gap = Walk - Bike) %>%
+  group_by(state, state_abb) %>%
+  summarise(mean_gap = mean(gap))
+map_df$state = tolower(map_df$state)
+
+#get ploygon data
+state = map_data('state')
+
+# combine
+map_df = map_df %>%
+  left_join(state, by = c('state' = 'region'))
+
+# prepare for the state abbreviation
+state_name = read_csv('states_for_map.csv')
+# delete AK HI
+state_name = state_name[-c(1,11),]
+
+# mapping
+ggplot() + 
+  geom_polygon(map_df, mapping = aes(long, lat, group = group, fill = mean_gap), color = 'white', size = 0.1)+
+  geom_text(data = state_name, mapping = aes(lon, lat, label = state_abbv), size = 2.5, color = '#636363', check_overlap = T)+
+  scale_fill_distiller(
+    direction = 1, name = 'mean difference', breaks = c(0.05, 0.10, 0.15), labels = c('5%', '10%', '15%'),
+    guide = guide_legend(
+      direction = "horizontal",
+      keyheight = unit(2, units = "mm"),
+      keywidth = unit(6.5, units = "mm"),
+      title.position = 'top',
+      label.position = "bottom"))+
+  labs(title = 'Walking or biking to work?', 
+       subtitle = 'Color represents the average of % walking - % biking by state')+
+  theme_map()+
+  theme(
+    title = element_text(family = 'Calibri',size = 12), 
+    legend.position = c(0.8, 0.03),
+    legend.text.align = 1,
+    legend.background = element_rect(fill = alpha('white', 0.0)),
+    legend.title = element_text(size = 9, family = 'Calibri', color = "#4e4d47"),
+    legend.text = element_text(size = 8, family = 'Calibri', color = "#4e4d47"),
+    plot.background = element_rect(fill = 'transparent',color = 'transparent'),
+    panel.background = element_rect(fill = 'transparent',color = 'transparent')
+    )+
+  coord_proj(paste0("+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-96",
+                    " +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs"))
+
+
+
+ggsave('walking_biking.png', width=25, height = 15, units = 'cm')
+
+
+```
+
+
+Zoom in to cities
+- 1579 cities
+- people in large cities like to walk
+```{r}
+# how many cities?
+
+bike_or_walk %>% 
+  count(city) #1579 cities
+
+# how about larget cities? they mostly walk!
+bike_or_walk %>%
+  filter(city_size == "Large") %>%
+  group_by(city) %>%
+  arrange(desc(percent))
+
+# what's the comparison of biking and walking in these big cities?
+
+get_cities = bike_or_walk %>%
+  filter(city_size == "Large") %>%
+  arrange(desc(percent)) %>%
+  slice(1:10) %>%
+  mutate(index = c(1:10)) %>%
+  select(index, city, state)
+  
+# people mostly bike in these large cities, and the gap is huge
+bike_or_walk %>%
+  inner_join(get_cities, by = c('city', 'state')) %>%
+  arrange(index, desc(percent))
+
+# let see it in bar graph
+bike_or_walk %>%
+  inner_join(get_cities, by = c('city', 'state')) %>%
+  arrange(index, desc(percent)) %>%
+  select(city, state, mode, percent, moe, state_region) %>%
+  ggplot(aes(x = city, y = percent, fill = as.factor(mode))) +
+  geom_col(stat = 'identity',position = 'dodge2')
+
+# plot it as dumbbell graph
+# get data first
+plot_df1 = bike_or_walk %>%
+  inner_join(get_cities, by = c('city', 'state')) %>%
+  arrange(index, desc(percent)) %>%
+  select(city, state, mode, percent, moe, state_region, state_abb) %>%
+  mutate(city = gsub(x = city, pattern = ' city', replacement = ''),
+         city = paste(city, state_abb, sep = ', ')) %>%
+  select(city, mode, percent) %>%
+  spread(key = mode, value = percent) %>%
+  mutate(gap = Walk - Bike, 
+         city = fct_reorder(city, Walk)) %>%
+  arrange(desc(Walk))
+# text for the % difference
+annotation = data.frame(
+  x = (plot_df1$Bike + plot_df1$Walk)/2,
+  y = c(10:6,4,5,3:1),
+  label = scales::percent(plot_df1$gap, accuracy = .1)
+)  
+
+# plot
+ggplot()+
+  geom_dumbbell(plot_df1, mapping = aes(x = Walk, xend = Bike, y = city), colour = '#dddddd', size = 2, colour_x = '#d95f02', colour_xend = "#1b9e77")+
+  geom_text(data = annotation, mapping = aes(x = x, y = y, label = label), size = 2.5, color = '#636363')+
+  scale_x_continuous(labels = scales::percent, limits = c(0,0.18), expand = c(0.005, 0.005))+
+  labs(x = NULL, y = NULL, title = 'Zoom in to top 10 large cities where people love walking',
+       subtitle = 'Biking vs. Walking', caption = 'As a NYer, I love walking! :-D')+
+  theme(text = element_text(family = 'Calibri', size = 10),
+        title = element_text(family = 'Calibri',size = 12), 
+        plot.background = element_rect(fill = "transparent", color = "transparent"),
+        panel.background = element_rect(fill = "transparent"))
+
+  
+
+
+ggsave('large_cities_walking.png', width=25, height = 20, units = 'cm')
+
+
+
+```
+
+
+
+
+
+
+
