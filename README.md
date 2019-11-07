@@ -1,2 +1,2 @@
-# tidytuesday_projects
-My work to the #TidyTuesday projects
+# Data visualization
+It's all about DATA VIZ
