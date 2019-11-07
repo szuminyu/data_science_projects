@@ -1,2 +1,2 @@
 # Data visualization
-It's all about DATA VIZ
+It's all about #DataViz. :p
