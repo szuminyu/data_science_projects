@@ -57,3 +57,4 @@ plt.imshow(wordcloud.recolor(color_func=image_colors), interpolation='bilinear')
 plt.axis('off')
 plt.margins(x = 0, y = 0)
 plt.show()
+
