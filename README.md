@@ -1,2 +1,3 @@
-# Data visualization
-It's all about #DataViz.
+# Data Science Projects
+
+It's all about #DataScience #DataViz #TidyTuesday.
