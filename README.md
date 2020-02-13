@@ -1,3 +1,5 @@
 # Data Science Projects
 
-It's all about #DataScience #DataViz #TidyTuesday.
+In this folder, I put together some data science projects or data visualization works.
+
+#datascience #dataviz #TidyTuesday
