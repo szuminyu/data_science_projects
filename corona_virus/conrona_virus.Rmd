@@ -1,0 +1,71 @@
+---
+title: "corona_virus"
+output: html_document
+---
+
+```{r, message=F}
+library(rvest)
+library(tidyverse)
+library(ggplot2)
+library(mapproj)
+library(ggthemes)
+library(ggmap)
+library(ggalt)
+library(ggrepel)
+```
+
+```{r}
+## get the live table
+cvirus = read_html('https://www.worldometers.info/coronavirus/countries-where-coronavirus-has-spread/')
+ctable = cvirus %>%
+  html_table()
+ctable= ctable[[1]]
+
+## clean the table
+ctable[5,1] = 'Japan'
+
+ctable$Cases = as.numeric(str_replace(ctable$Cases, pattern = ',', replacement = ''))
+ctable$Deaths = as.numeric(str_replace(ctable$Deaths, pattern = ',', replacement = ''))
+
+## get coordinates
+world = map_data('world') %>% filter(region != 	'Antarctica')
+world$region[world$region  == 'USA'] = 'United States'
+world$region[world$region  == 'UK'] = 'United Kingdom'
+
+## join two tables
+c_world = world %>%
+  left_join(ctable, by = c('region'='Country'))
+```
+
+```{r}
+
+## add text
+numbers = ctable %>% filter(Country %in% c('China', 'South Korea', 'Japan', 'Italy', 'United States', 'Iran')) %>% select(Cases) 
+numbers = numbers[c(1,2,5,3,6,4),]
+numbers = unlist(numbers)
+
+text = data.frame(loc = paste(c('China', 'South Korea', 'Japan', 'Italy', 'USA', 'Iran'), c('\n'), numbers), 
+                  long = c(103.442158, 131.011802, 151.182130, 13.210889, -98.410561, 54.112926),
+                  lat = c(33.474367,44.168811, 32.952951, 41.021499, 37.979742, 33.735484))
+
+
+## mapping
+png('c_virus_map.png', width = 8, height = 5, units = 'in', res = 900)
+ggplot() +
+  geom_polygon(data = c_world, aes(long, lat, group = group, fill = Cases),colour = '#d9d9d9', size = 0.1)+
+  scale_fill_distiller(palette = 'OrRd',type = 'seq', direction = 1, name = 'Cases', trans = 'log', breaks = c(2, 10, 50, 250, 1250, 6000,30000), labels = c(2, 10, 50, 250, 1250, 6000, 30000), na.value= 'white')+
+  geom_text(data = text, aes(x = long, y = lat, label = loc, family = 'Calibri'), size = 3, position = position_dodge(0.9))+
+  labs(title = paste('Coronavirus Infected Countries', Sys.Date()))+
+  coord_map(xlim=c(-180,180))+
+  theme_map()+
+  guides(fill =  guide_colorbar(title.position = "top", title.hjust = 0.5, nrow = 1, byrow = T))+
+  theme(plot.title = element_text(hjust = 0.5, family = 'Calibri', size = 13),
+        legend.direction = 'horizontal',
+        legend.position = c(0.12, 0.004),
+        legend.text = element_text(family = 'Calibri', size= 10),
+        legend.key.width=unit(2.7, "cm"),
+        legend.key.height = unit(0.2, 'cm'))
+
+dev.off()
+
+```
