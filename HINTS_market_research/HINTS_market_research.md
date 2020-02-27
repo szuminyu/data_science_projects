@@ -6,3 +6,4 @@ I analyze this dataset as part of the market research for the client that my com
 The goal of this notebook is to explore features that could play important roles in predicting cancer patients who have cancer, whether they look for cancer information, and to segment cancer patients into different groups.
 
 In this notebook, I apply Logistic Regession and Random Forest Classifiers to classify cancer patients. I also use SHAP value to interpret the Random Forest model. Besides, I do cancer patient segmentation using K-Means Clustering to extract more information about the differences between patient groups. 
+ 
