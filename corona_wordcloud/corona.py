@@ -2,6 +2,7 @@ from newsapi import NewsApiClient
 
 api = NewsApiClient(api_key = key)
 
+## get data
 articles = api.get_everything(q = 'corona virus',
                       from_param = '2020-02-06',
                       to = '2020-03-06',
@@ -16,6 +17,7 @@ for j in range(news_list[2][1].__len__()):
     title_list.append(news_list[2][1][j]['title'])
     title_list.append(news_list[2][1][j]['content'])
 
+## clean text
 
 import pandas as pd
 from nltk.corpus import stopwords
@@ -35,7 +37,7 @@ text = text.apply(lambda x: ' '.join(x for x in x.split() if x not in stop))
 #check frequencies:
 pd.Series(' '.join(text).split()).value_counts()
 
-#wordcloud
+##wordcloud
 wc = WordCloud(width = 1600, height = 800, background_color= 'white', colormap='Oranges', stopwords=['chars']).generate(' '.join(text))
 plt.figure(figsize= (20,10))
 plt.imshow(wc, interpolation='bilinear')
@@ -44,7 +46,7 @@ plt.margins(x= 0, y=0)
 
 
 
-#wordcloud with mask
+##wordcloud with mask
 
 dt_mask = np.array(Image.open('virus1.png'))
 
