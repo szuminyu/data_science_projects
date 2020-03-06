@@ -29,13 +29,15 @@ from PIL import Image
 text = pd.Series(title_list)
 text = text.drop_duplicates()
 text = text.dropna()
-
+#lower the words
 text = text.apply(lambda x: ' '.join(x.lower() for x in x.split()))
+# replace punc
 text = text.str.replace('[\W]', ' ')
+# delete stopwords
 stop = stopwords.words('english')
 text = text.apply(lambda x: ' '.join(x for x in x.split() if x not in stop))
 #check frequencies:
-pd.Series(' '.join(text).split()).value_counts()
+freq = pd.Series(' '.join(text).split()).value_counts()
 
 ##wordcloud
 wc = WordCloud(width = 1600, height = 800, background_color= 'white', colormap='Oranges', stopwords=['chars']).generate(' '.join(text))
